@@ -6,6 +6,7 @@ import pyautogui
 import platform
 import subprocess
 
+
 try:
     import screen_brightness_control as sbc
 except ImportError:
