@@ -3,8 +3,6 @@ import cv2 as cv
 import numpy as np
 import mediapipe as mp
 import pyautogui
-import keyboard
-
 
 # Constants
 MIN_DETECTION_CONFIDENCE = 0.7
@@ -12,7 +10,7 @@ MIN_TRACKING_CONFIDENCE = 0.7
 CLICK_THRESHOLD = 20
 ERASE_THRESHOLD = 30
 WAVE_THRESHOLD = 100
-FINGER_CLOSE_THRESHOLD = 30
+FINGER_CLOSE_THRESHOLD = 40  # Slightly increased for better accuracy
 
 # Initialize MediaPipe Hands
 mp_hands = mp.solutions.hands
@@ -20,14 +18,9 @@ mp_draw = mp.solutions.drawing_utils
 hands = mp_hands.Hands(min_detection_confidence=MIN_DETECTION_CONFIDENCE, min_tracking_confidence=MIN_TRACKING_CONFIDENCE)
 
 # Get screen size
+control_mode = "volume"
+last_switch_time = 0
 screen_w, screen_h = pyautogui.size()
-
-def switch_control_mode():
-    global control_mode, last_switch_time
-    if time.time() - last_switch_time > 1:  # Prevent frequent switching
-        control_mode = "brightness" if control_mode == "volume" else "volume"
-        print(f"Switched to {control_mode} mode")
-        last_switch_time = time.time()
 
 # Initialize camera
 cap = cv.VideoCapture(0)
@@ -40,11 +33,22 @@ if not ret:
     print("Failed to read initial frame.")
     exit()
 
-h, w, _ = frame.shape
+h, w, _ = frame.shape  # Get frame height and width
 blackboard = np.zeros((h, w, 3), dtype=np.uint8)
+
 prev_x, prev_y = None, None
-volume_control = False
-brightness_control = False
+
+def switch_control_mode(landmarks):
+    """ Switches between volume and brightness using thumb and pinky """
+    global control_mode, last_switch_time
+    if time.time() - last_switch_time > 1:  # Prevents frequent switching
+        thumb_x, thumb_y = int(landmarks[4].x * w), int(landmarks[4].y * h)
+        pinky_x, pinky_y = int(landmarks[20].x * w), int(landmarks[20].y * h)
+
+        if abs(thumb_x - pinky_x) < FINGER_CLOSE_THRESHOLD and abs(thumb_y - pinky_y) < FINGER_CLOSE_THRESHOLD:
+            control_mode = "brightness" if control_mode == "volume" else "volume"
+            last_switch_time = time.time()
+            print(f"Switched to: {control_mode}")
 
 while True:
     ret, frame = cap.read()
@@ -61,10 +65,8 @@ while True:
             mp_draw.draw_landmarks(frame, hand_landmarks, mp_hands.HAND_CONNECTIONS)
             landmarks = hand_landmarks.landmark
 
-            # Extract key points
             index_x, index_y = int(landmarks[8].x * w), int(landmarks[8].y * h)
             thumb_x, thumb_y = int(landmarks[4].x * w), int(landmarks[4].y * h)
-            middle_x, middle_y = int(landmarks[12].x * w), int(landmarks[12].y * h)
             pinky_x, pinky_y = int(landmarks[20].x * w), int(landmarks[20].y * h)
 
             # Convert hand coordinates to screen coordinates
@@ -75,22 +77,18 @@ while True:
 
             # Right Hand: Mouse Control & Drawing
             if hand_label == "Right":
-                # Left Click: Index & Thumb close
                 if not action_done and np.hypot(index_x - thumb_x, index_y - thumb_y) < CLICK_THRESHOLD:
                     pyautogui.click()
                     action_done = True
 
-                # Right Click: Middle & Thumb close
-                elif not action_done and np.hypot(middle_x - thumb_x, middle_y - thumb_y) < CLICK_THRESHOLD:
+                elif not action_done and np.hypot(index_x - pinky_x, index_y - pinky_y) < CLICK_THRESHOLD:
                     pyautogui.rightClick()
                     action_done = True
 
-                # Scroll Gesture
                 elif not action_done and all(landmarks[finger].y < landmarks[finger - 2].y for finger in [8, 12, 16]):
-                    pyautogui.scroll(-5 if index_y < h // 2 else 5)
+                    pyautogui.scroll(-15 if index_y < h // 2 else 15)  # Reduced delay by increasing scroll speed
                     action_done = True
 
-                # Drawing Mode: Index Finger Up (Disable mouse movement)
                 elif not action_done and landmarks[8].y < landmarks[6].y and landmarks[12].y > landmarks[10].y:
                     if prev_x is not None and prev_y is not None:
                         cv.line(blackboard, (prev_x, prev_y), (index_x, index_y), (0, 0, 255), 5)
@@ -99,28 +97,23 @@ while True:
                 else:
                     prev_x, prev_y = None, None
 
-                # Mouse movement (if no other action is active)
                 if not action_done and landmarks[8].y < landmarks[6].y and landmarks[12].y < landmarks[10].y:
-                    pyautogui.moveTo(screen_x, screen_y, duration=0.1)
+                    pyautogui.moveTo(screen_x, screen_y, duration=0.05)  # Faster response
 
-            # Left Hand: Erase & Volume/Brightness
+            # Left Hand: Volume/Brightness Control
             elif hand_label == "Left":
-                # Erase: Thumb & Index close
                 if not action_done and np.hypot(index_x - thumb_x, index_y - thumb_y) < ERASE_THRESHOLD:
                     cv.circle(blackboard, (index_x, index_y), 20, (0, 0, 0), -1)
                     action_done = True
 
-                # Wave to clear screen
                 elif not action_done and abs(index_x - pinky_x) > WAVE_THRESHOLD:
                     blackboard.fill(0)
                     action_done = True
 
-                # Volume/Brightness Control
-                if np.hypot(thumb_x - pinky_x, thumb_y - pinky_y) < 30:
-                    switch_control_mode()
+                # Switch mode
+                switch_control_mode(landmarks)
 
-                # Adjust volume/brightness based on index finger position
-                index_y = int(hand_landmarks.landmark[8].y * h)
+                # Adjust volume/brightness
                 if control_mode == "volume":
                     if index_y < h // 2:
                         pyautogui.press('volumeup')
