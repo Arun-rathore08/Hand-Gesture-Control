@@ -4,10 +4,16 @@ Hand gesture recognition and performing tasks on gestures
 
 ##requirements
 
-OpenCV
+OpenCV 
+
 MediaPipe
+
 Pyautogui
+
 Pynput
+
 Keyboard
+
 Numpy
+
 Time
