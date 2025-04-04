@@ -5,8 +5,8 @@ import mediapipe as mp
 import pyautogui
 
 # Constants
-MIN_DETECTION_CONFIDENCE = 0.7
-MIN_TRACKING_CONFIDENCE = 0.7
+MIN_DETECTION_CONFIDENCE = 0.8
+MIN_TRACKING_CONFIDENCE = 0.8
 CLICK_THRESHOLD = 20
 ERASE_THRESHOLD = 30
 WAVE_THRESHOLD = 100
@@ -86,7 +86,7 @@ while True:
                     action_done = True
 
                 elif not action_done and all(landmarks[finger].y < landmarks[finger - 2].y for finger in [8, 12, 16]):
-                    pyautogui.scroll(-15 if index_y < h // 2 else 15)  # Reduced delay by increasing scroll speed
+                    pyautogui.scroll(-10 if index_y < h // 2 else 10)  # Reduced delay by increasing scroll speed
                     action_done = True
 
                 elif not action_done and landmarks[8].y < landmarks[6].y and landmarks[12].y > landmarks[10].y:
