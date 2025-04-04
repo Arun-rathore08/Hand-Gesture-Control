@@ -3,6 +3,13 @@ import cv2 as cv
 import numpy as np
 import mediapipe as mp
 import pyautogui
+import platform
+import subprocess
+
+try:
+    import screen_brightness_control as sbc
+except ImportError:
+    sbc = None
 
 # Constants
 MIN_DETECTION_CONFIDENCE = 0.8
@@ -49,6 +56,30 @@ def switch_control_mode(landmarks):
             control_mode = "brightness" if control_mode == "volume" else "volume"
             last_switch_time = time.time()
             print(f"Switched to: {control_mode}")
+
+def change_brightness(increase=True, percent=10):
+    system_platform = platform.system().lower()
+    
+    try:
+        if system_platform == 'windows' and sbc:
+            current = sbc.get_brightness(display=0)[0]
+            new_brightness = min(100, current + percent) if increase else max(0, current - percent)
+            sbc.set_brightness(new_brightness, display=0)
+
+        elif system_platform == 'linux':
+            cmd = f"xbacklight -{'inc' if increase else 'dec'} {percent}"
+            subprocess.run(cmd, shell=True)
+
+        elif system_platform == 'darwin':  # macOS
+            # Requires `brightness` command-line tool
+            print("macOS brightness control not implemented. Use external tool like 'brightness'.")
+
+        else:
+            print(f"Unsupported platform: {system_platform}")
+
+    except Exception as e:
+        print(f"Brightness control failed: {e}")
+
 
 while True:
     ret, frame = cap.read()
@@ -121,9 +152,9 @@ while True:
                         pyautogui.press('volumedown')
                 else:  # Brightness mode
                     if index_y < h // 2:
-                        pyautogui.press('brightnessup')
+                        change_brightness(increase=True)
                     else:
-                        pyautogui.press('brightnessdown')
+                        change_brightness(increase=False)
 
     # Overlay BlackBoard
     frame = cv.addWeighted(frame, 1, blackboard, 0.3, 0)
