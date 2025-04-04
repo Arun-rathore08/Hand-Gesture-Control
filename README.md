@@ -1,2 +1,13 @@
 # Hand-Gesture-Control
-Hand gesture recognition using the OpenCV, MediaPipe, Pyautogui, Pynut and Keyboard
+Hand gesture recognition and performing tasks on gestures
+
+
+##requirements
+
+OpenCV
+MediaPipe
+Pyautogui
+Pynput
+Keyboard
+Numpy
+Time
