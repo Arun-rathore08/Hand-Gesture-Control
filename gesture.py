@@ -4,7 +4,6 @@ import time
 import numpy as np
 import mediapipe as mp
 from pynput.mouse import Controller, Button
-import keyboard
 import platform
 import pyautogui
 import shutil
