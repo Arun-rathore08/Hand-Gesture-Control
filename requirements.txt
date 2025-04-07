@@ -1,7 +1,9 @@
-opencv-python
-mediapipe
-numpy
-pyautogui
-wmi
+opencv-python==4.11.0.86
+mediapipe==0.10.21
+numpy==1.26.4
+pyautogui==0.9.54
+wmi==1.4.9
 shutil
 platform
+screen_brightness_control==0.24.2
+pynput==1.8.1
